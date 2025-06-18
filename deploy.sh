@@ -10,8 +10,9 @@ echo "🚀 Déploiement de Pet Alert France sur Ubuntu 22.04..."
 # Variables de configuration
 DOMAIN="petalertefrance.fr"
 APP_DIR="/var/www/petalertfrance"
-BACKEND_PORT=3001
+BACKEND_PORT=3002
 FRONTEND_PORT=5174
+GIT_REPO="https://github.com/Zuuux/prvt.git"
 
 # Couleurs pour les messages
 RED='\033[0;31m'
@@ -32,23 +33,23 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Vérifier si on est root
-if [[ $EUID -eq 0 ]]; then
-   print_error "Ce script ne doit pas être exécuté en tant que root"
-   exit 1
-fi
-
 
 # Créer le répertoire de l'application
 print_status "Création du répertoire de l'application..."
 sudo mkdir -p $APP_DIR
 sudo chown $USER:$USER $APP_DIR
 
-# Cloner ou copier le code (à adapter selon votre méthode de déploiement)
-print_status "Copie du code de l'application..."
-# Si vous avez un repository Git :
-# git clone https://github.com/votre-repo/petalertfrance.git $APP_DIR
-# Ou copier les fichiers manuellement
+# Cloner le code depuis GitHub
+print_status "Clonage du code depuis GitHub..."
+if [ -d "$APP_DIR/.git" ]; then
+    print_status "Repository existant détecté, mise à jour..."
+    cd $APP_DIR
+    git pull origin main
+else
+    print_status "Clonage du repository..."
+    git clone $GIT_REPO $APP_DIR
+    cd $APP_DIR
+fi
 
 # Installer les dépendances du backend
 print_status "Installation des dépendances backend..."
@@ -69,7 +70,9 @@ sudo mysql -e "FLUSH PRIVILEGES;"
 
 # Importer le schéma de base de données
 print_status "Import du schéma de base de données..."
-sudo mysql petalertfrance < $APP_DIR/backend/database.sql
+sudo mysql petalertfrance < $APP_DIR/backend/database.sql 2>/dev/null || {
+    print_warning "Certains éléments de la base de données existent déjà, continuation..."
+}
 
 # Configuration du backend
 print_status "Configuration du backend..."
@@ -95,30 +98,16 @@ print_status "Build du frontend..."
 cd $APP_DIR
 npm run build
 
-# Configuration PM2 pour le backend
-print_status "Configuration de PM2 pour le backend..."
-cat > $APP_DIR/ecosystem.config.js << EOF
-module.exports = {
-  apps: [{
-    name: 'petalertfrance-backend',
-    script: './backend/server.js',
-    cwd: '$APP_DIR',
-    instances: 1,
-    autorestart: true,
-    watch: false,
-    max_memory_restart: '1G',
-    env: {
-      NODE_ENV: 'production',
-      PORT: $BACKEND_PORT
-    }
-  }]
-};
-EOF
-
 # Démarrer le backend avec PM2
 print_status "Démarrage du backend avec PM2..."
 cd $APP_DIR
-pm2 start ecosystem.config.js
+
+# Arrêter l'ancienne instance si elle existe
+pm2 stop petalertfrance-backend 2>/dev/null || true
+pm2 delete petalertfrance-backend 2>/dev/null || true
+
+# Démarrer la nouvelle instance
+pm2 start backend/server.js --name "petalertfrance-backend" --cwd $APP_DIR
 pm2 save
 pm2 startup
 
@@ -175,7 +164,7 @@ server {
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;
-    gzip_proxied expired no-cache no-store private must-revalidate auth;
+    gzip_proxied expired no-cache no-store private;
     gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
 }
 EOF
@@ -209,7 +198,7 @@ print_status "Vérification du déploiement..."
 sleep 5
 
 # Vérifier que le backend fonctionne
-if curl -s http://localhost:$BACKEND_PORT/api/alerts > /dev/null; then
+if curl -s http://localhost:$BACKEND_PORT/api/health > /dev/null; then
     print_status "✅ Backend opérationnel"
 else
     print_error "❌ Problème avec le backend"
@@ -244,3 +233,6 @@ echo "2. Configurez votre email dans le script pour les notifications SSL"
 echo "3. Testez toutes les fonctionnalités de l'application"
 echo "4. Configurez les sauvegardes de la base de données"
 echo "5. Surveillez les logs : pm2 logs et sudo tail -f /var/log/nginx/error.log"
+echo ""
+print_warning "🔑 Pour les mises à jour futures :"
+echo "cd $APP_DIR && git pull origin main && npm install && npm run build && pm2 restart petalertfrance-backend"

@@ -19,8 +19,8 @@ const Dashboard = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [petsResponse, alertsResponse] = await Promise.all([
-        axios.get('http://localhost:3001/api/pets/my-pets', { headers }),
-        axios.get('http://localhost:3001/api/alerts/my-alerts', { headers })
+        axios.get('http://localhost:3002/api/pets/my-pets', { headers }),
+        axios.get('http://localhost:3002/api/alerts/my-alerts', { headers })
       ]);
 
       setPets(petsResponse.data);
@@ -36,7 +36,7 @@ const Dashboard = () => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cet animal ?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:3001/api/pets/${petId}`, {
+        await axios.delete(`http://localhost:3002/api/pets/${petId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setPets(pets.filter(pet => pet.id !== petId));
@@ -50,7 +50,7 @@ const Dashboard = () => {
     if (window.confirm('Êtes-vous sûr de vouloir fermer cette alerte ?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.put(`http://localhost:3001/api/alerts/${alertId}/close`, {}, {
+        await axios.put(`http://localhost:3002/api/alerts/${alertId}/close`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setAlerts(alerts.filter(alert => alert.id !== alertId));

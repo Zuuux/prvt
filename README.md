@@ -70,7 +70,7 @@ DB_PORT=3306
 JWT_SECRET=votre-super-secret-jwt-key-change-this-in-production
 
 # Configuration du serveur
-PORT=3001
+PORT=3002
 
 # Configuration CORS
 CORS_ORIGIN=http://localhost:5173

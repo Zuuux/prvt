@@ -1,6 +1,6 @@
 // Configuration de l'API selon l'environnement
 const API_BASE_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.DEV ? 'http://localhost:3001/api' : 'https://petalertefrance.fr/api');
+  (import.meta.env.DEV ? 'http://localhost:3002/api' : 'https://petalertefrance.fr/api');
 
 // Configuration Axios avec intercepteurs
 import axios from 'axios';

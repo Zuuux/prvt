@@ -1,108 +1,74 @@
 # 🚀 Guide de Déploiement - Pet Alert France
 
-## 📋 Prérequis
+## 🚀 Déploiement sur Ubuntu 22.04 LTS
+
+Ce guide vous accompagne pour déployer Pet Alert France sur un serveur Ubuntu 22.04 avec Nginx, PM2, MySQL et SSL.
+
+### 📋 Prérequis
 
 - Serveur Ubuntu 22.04 LTS
-- Nom de domaine configuré (petalertefrance.fr)
-- Accès SSH au serveur
-- Droits sudo
+- Accès SSH avec privilèges sudo
+- Nom de domaine configuré (ex: petalertefrance.fr)
+- Clé SSH configurée pour GitHub
 
-## 🔧 Installation Automatique
+### 🔧 Installation Automatique
 
-### 1. Préparation du serveur
+1. **Connectez-vous à votre serveur :**
+   ```bash
+   ssh utilisateur@votre-serveur
+   ```
 
+2. **Téléchargez et exécutez le script de déploiement :**
+   ```bash
+   wget https://raw.githubusercontent.com/Zuuux/prvt/main/deploy.sh
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+### 📝 Configuration Manuelle
+
+Si vous préférez une installation manuelle ou si le script automatique échoue :
+
+#### 1. Mise à jour du système
 ```bash
-# Se connecter au serveur
-ssh utilisateur@votre-serveur
-
-# Rendre le script exécutable
-chmod +x deploy.sh
-
-# Exécuter le script de déploiement
-./deploy.sh
-```
-
-### 2. Configuration manuelle post-déploiement
-
-#### Modifier les mots de passe
-```bash
-# Éditer le fichier .env du backend
-nano /var/www/petalertfrance/backend/.env
-
-# Changer les mots de passe :
-# DB_PASSWORD=VotreNouveauMotDePasseSecurise123!
-# JWT_SECRET=VotreNouveauJWTSecretTresSecurise123!
-```
-
-#### Configurer l'email pour SSL
-```bash
-# Éditer le script de déploiement
-nano deploy.sh
-
-# Remplacer votre-email@example.com par votre vrai email
-sudo certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email votre-vrai-email@example.com
-```
-
-## 🔄 Déploiement Manuel
-
-### 1. Installation des dépendances système
-
-```bash
-# Mise à jour du système
 sudo apt update && sudo apt upgrade -y
+```
 
-# Installation des packages nécessaires
+#### 2. Installation des dépendances
+```bash
 sudo apt install -y curl wget git nginx certbot python3-certbot-nginx mysql-server
+```
 
-# Installation de Node.js 18.x
+#### 3. Installation de Node.js 18.x
+```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
-
-# Installation de PM2
 sudo npm install -g pm2
 ```
 
-### 2. Configuration de MySQL
-
+#### 4. Configuration de MySQL
 ```bash
-# Sécuriser MySQL
 sudo mysql_secure_installation
-
-# Créer la base de données et l'utilisateur
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS petalertfrance CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 sudo mysql -e "CREATE USER IF NOT EXISTS 'petalertfrance'@'localhost' IDENTIFIED BY 'VotreMotDePasseSecurise123!';"
 sudo mysql -e "GRANT ALL PRIVILEGES ON petalertfrance.* TO 'petalertfrance'@'localhost';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 ```
 
-### 3. Déploiement de l'application
-
+#### 5. Clonage du code
 ```bash
-# Créer le répertoire de l'application
 sudo mkdir -p /var/www/petalertfrance
 sudo chown $USER:$USER /var/www/petalertfrance
-
-# Copier les fichiers de l'application
-# (via Git, SCP, ou autre méthode)
-
-# Installer les dépendances
-cd /var/www/petalertfrance/backend
-npm install
-
+git clone git@github.com:Zuuux/prvt.git /var/www/petalertfrance
 cd /var/www/petalertfrance
-npm install
-
-# Build du frontend
-npm run build
 ```
 
-### 4. Configuration de l'environnement
-
+#### 6. Configuration des variables d'environnement
 ```bash
-# Backend .env
-cat > /var/www/petalertfrance/backend/.env << EOF
+# Backend
+cat > backend/.env << EOF
 NODE_ENV=production
-PORT=3001
+PORT=3002
 DB_HOST=localhost
 DB_USER=petalertfrance
 DB_PASSWORD=VotreMotDePasseSecurise123!
@@ -111,17 +77,27 @@ JWT_SECRET=VotreJWTSecretTresSecurise123!
 CORS_ORIGIN=https://petalertefrance.fr
 EOF
 
-# Frontend .env.production
-cat > /var/www/petalertfrance/.env.production << EOF
+# Frontend
+cat > .env.production << EOF
 VITE_API_URL=https://petalertefrance.fr/api
 EOF
 ```
 
-### 5. Configuration PM2
-
+#### 7. Installation des dépendances et build
 ```bash
-# Créer le fichier ecosystem.config.js
-cat > /var/www/petalertfrance/ecosystem.config.js << EOF
+# Backend
+cd backend
+npm install
+cd ..
+
+# Frontend
+npm install
+npm run build
+```
+
+#### 8. Configuration PM2
+```bash
+cat > ecosystem.config.js << EOF
 module.exports = {
   apps: [{
     name: 'petalertfrance-backend',
@@ -133,33 +109,29 @@ module.exports = {
     max_memory_restart: '1G',
     env: {
       NODE_ENV: 'production',
-      PORT: 3001
+      PORT: 3002
     }
   }]
 };
 EOF
 
-# Démarrer l'application
-cd /var/www/petalertfrance
 pm2 start ecosystem.config.js
 pm2 save
 pm2 startup
 ```
 
-### 6. Configuration Nginx
-
+#### 9. Configuration Nginx
 ```bash
-# Créer la configuration Nginx
-sudo tee /etc/nginx/sites-available/petalertfrance.fr > /dev/null << EOF
+sudo tee /etc/nginx/sites-available/petalertefrance.fr > /dev/null << EOF
 server {
     listen 80;
-    server_name petalertefrance.fr www.petalertfrance.fr;
+    server_name petalertefrance.fr www.petalertefrance.fr;
     return 301 https://\$server_name\$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name petalertefrance.fr www.petalertfrance.fr;
+    server_name petalertefrance.fr www.petalertefrance.fr;
     
     # Frontend
     location / {
@@ -174,7 +146,7 @@ server {
     
     # API Backend
     location /api/ {
-        proxy_pass http://localhost:3001/;
+        proxy_pass http://localhost:3002/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -190,6 +162,7 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
     
     # Gzip
     gzip on;
@@ -200,33 +173,132 @@ server {
 }
 EOF
 
-# Activer le site
-sudo ln -sf /etc/nginx/sites-available/petalertfrance.fr /etc/nginx/sites-enabled/
+sudo ln -sf /etc/nginx/sites-available/petalertefrance.fr /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
-
-# Tester et redémarrer Nginx
 sudo nginx -t
 sudo systemctl restart nginx
 sudo systemctl enable nginx
 ```
 
-### 7. Configuration SSL
-
+#### 10. Configuration SSL
 ```bash
-# Obtenir le certificat SSL
-sudo certbot --nginx -d petalertefrance.fr -d www.petalertfrance.fr --non-interactive --agree-tos --email votre-email@example.com
-
-# Configurer le renouvellement automatique
+sudo certbot --nginx -d petalertefrance.fr -d www.petalertefrance.fr --non-interactive --agree-tos --email votre-email@example.com
 sudo crontab -l 2>/dev/null | { cat; echo "0 12 * * * /usr/bin/certbot renew --quiet"; } | sudo crontab -
 ```
 
-### 8. Configuration du firewall
-
+#### 11. Configuration du firewall
 ```bash
 sudo ufw allow ssh
 sudo ufw allow 'Nginx Full'
 sudo ufw --force enable
 ```
+
+### 🔄 Mises à jour
+
+Pour mettre à jour l'application :
+
+```bash
+# Utiliser le script automatique
+./update.sh
+
+# Ou manuellement
+cd /var/www/petalertfrance
+git pull origin main
+npm install
+cd backend && npm install && cd ..
+npm run build
+pm2 restart petalertfrance-backend
+```
+
+### 💾 Sauvegardes
+
+Le script de sauvegarde automatique est configuré pour :
+- Sauvegarder la base de données quotidiennement
+- Conserver 7 jours d'historique
+- Compresser les sauvegardes
+
+```bash
+# Sauvegarde manuelle
+./backup.sh
+
+# Vérifier les sauvegardes
+ls -la /var/backups/petalertfrance/
+```
+
+### 🔍 Surveillance
+
+#### Logs
+```bash
+# Logs de l'application
+pm2 logs petalertfrance-backend
+
+# Logs Nginx
+sudo tail -f /var/log/nginx/access.log
+sudo tail -f /var/log/nginx/error.log
+
+# Logs MySQL
+sudo tail -f /var/log/mysql/error.log
+```
+
+#### Statut des services
+```bash
+# Statut PM2
+pm2 status
+
+# Statut Nginx
+sudo systemctl status nginx
+
+# Statut MySQL
+sudo systemctl status mysql
+```
+
+### 🛠️ Dépannage
+
+#### Problèmes courants
+
+1. **Backend ne démarre pas :**
+   ```bash
+   pm2 logs petalertfrance-backend
+   cd /var/www/petalertfrance/backend
+   node server.js
+   ```
+
+2. **Erreurs de base de données :**
+   ```bash
+   sudo mysql -u petalertfrance -p petalertfrance
+   ```
+
+3. **Problèmes SSL :**
+   ```bash
+   sudo certbot certificates
+   sudo certbot renew --dry-run
+   ```
+
+4. **Problèmes Nginx :**
+   ```bash
+   sudo nginx -t
+   sudo systemctl restart nginx
+   ```
+
+### 🔐 Sécurité
+
+- Changez tous les mots de passe par défaut
+- Configurez un firewall approprié
+- Surveillez régulièrement les logs
+- Maintenez le système à jour
+- Utilisez des certificats SSL valides
+
+### 📞 Support
+
+En cas de problème :
+1. Vérifiez les logs
+2. Consultez ce guide
+3. Testez les fonctionnalités une par une
+4. Restaurez une sauvegarde si nécessaire
+
+---
+
+**Note :** Remplacez `petalertefrance.fr` par votre nom de domaine et `votre-email@example.com` par votre email pour les notifications SSL.
 
 ## 🔧 Maintenance
 

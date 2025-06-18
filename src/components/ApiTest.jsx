@@ -99,7 +99,7 @@ const ApiTest = () => {
       <div className="mt-6 p-4 bg-gray-50 rounded-lg">
         <h4 className="font-semibold mb-2">Instructions :</h4>
         <ul className="text-sm text-gray-600 space-y-1">
-          <li>• Assurez-vous que le backend est démarré sur le port 3001</li>
+          <li>• Assurez-vous que le backend est démarré sur le port 3002</li>
           <li>• Vérifiez que la base de données MySQL est configurée</li>
           <li>• Le compte de test est : test@example.com / password123</li>
         </ul>

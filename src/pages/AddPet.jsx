@@ -40,7 +40,7 @@ const AddPet = () => {
         }
       });
 
-      await axios.post('http://localhost:3001/api/pets', formDataToSend, {
+      await axios.post('http://localhost:3002/api/pets', formDataToSend, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
